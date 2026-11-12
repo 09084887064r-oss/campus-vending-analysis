@@ -13,6 +13,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_DIR="$REPO_ROOT/skills/$NAME"
 OUT="$REPO_ROOT/dist/$NAME.zip"
 INSTALL_DOC="$REPO_ROOT/INSTALL.md"
+GUIDE_DOC="$REPO_ROOT/使用说明.txt"
 
 # Windows 上 python3 常指向 Microsoft Store 占位程序（存在但一跑就退出 1），
 # 因此逐个试跑 `-c 'import sys'`，只接受真正能执行的解释器。
@@ -41,6 +42,7 @@ for d in assets references scripts data; do
 done
 [ -f "$SKILL_DIR/assets/template.xlsx" ] || echo "WARN: 缺 assets/template.xlsx，报表将回退内置样式" >&2
 [ -f "$INSTALL_DOC" ] || echo "WARN: 缺 INSTALL.md，ZIP 里将没有安装说明" >&2
+[ -f "$GUIDE_DOC" ] || echo "WARN: 缺 使用说明.txt，ZIP 里将没有大白话版说明" >&2
 
 rm -f "$OUT"
 mkdir -p "$REPO_ROOT/dist"
@@ -52,6 +54,9 @@ if command -v zip >/dev/null 2>&1; then
          "*/data/raw/*" "*/data/processed/*" "*/data/reports/*" )
   if [ -f "$INSTALL_DOC" ]; then
     ( cd "$REPO_ROOT" && zip -q -j "$OUT" INSTALL.md )
+  fi
+  if [ -f "$GUIDE_DOC" ]; then
+    ( cd "$REPO_ROOT" && zip -q -s utf-8 -j "$OUT" "使用说明.txt" )
   fi
 else
   BACKEND="python-zipfile"
@@ -78,9 +83,10 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
         if len(parts) >= 4 and parts[1] == "data" and parts[2] in {"raw", "processed", "reports"}:
             continue
         archive.write(path, rel)
-    install_doc = repo_root / "INSTALL.md"
-    if install_doc.is_file():
-        archive.write(install_doc, "INSTALL.md")
+    for doc_name in ("INSTALL.md", "使用说明.txt"):
+        doc = repo_root / doc_name
+        if doc.is_file():
+            archive.write(doc, doc_name)
 PYEOF
 fi
 
@@ -94,13 +100,14 @@ with zipfile.ZipFile(out) as archive:
     names = [n for n in archive.namelist() if not n.endswith("/")]
 tops = {n.split("/")[0] for n in names}
 problems = []
-allowed = {name, "INSTALL.md"}
+allowed = {name, "INSTALL.md", "使用说明.txt"}
 if not tops.issubset(allowed):
     problems.append(f"ZIP 顶层有多余条目：{sorted(tops - allowed)}")
 if name not in tops:
     problems.append("ZIP 里没有技能目录")
-if "INSTALL.md" not in names:
-    problems.append("ZIP 顶层缺少 INSTALL.md（安装说明）")
+for doc_name in ("INSTALL.md", "使用说明.txt"):
+    if doc_name not in names:
+        problems.append(f"ZIP 顶层缺少 {doc_name}（说明文档）")
 required = ["SKILL.md", "assets/template.xlsx", "scripts/run.py",
             "references/data-contract.md", "data/README.md"]
 problems += [f"缺少 {item}" for item in required if f"{name}/{item}" not in names]
