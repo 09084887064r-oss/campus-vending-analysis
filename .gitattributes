@@ -12,3 +12,7 @@
 *.docx binary
 *.zip  binary
 *.png  binary
+
+# 给非技术用户的纯文本说明：必须原样保留 CRLF + BOM，
+# 否则 git 换成 LF 后，老版 Windows 记事本打开会变成一整行。
+使用说明.txt -text
