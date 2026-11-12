@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Sequence
 
@@ -186,3 +188,45 @@ def point(cur: Any, prev: Any) -> Any:
     if cur is None or prev is None:
         return NA
     return round((cur - prev) * 100, 4)
+
+
+# ---------------------------------------------------------------- 楼栋组别名合并
+#
+# 人数表用「十栋+十一栋」这种写法时，把每个单栋合并到该组；合并关系完全由
+# 用户人数表自己声明，程序不猜测任何合并。表格（modules）与诊断（diagnose）
+# 必须使用这同一份实现，否则会出现「表格算对了、提升点报错了」的分裂。
+
+_DORM_SPLIT = re.compile(r"[+＋/、,，;；\s]+")
+
+
+def dorm_parts(label: str) -> list[str]:
+    parts = [part.strip() for part in _DORM_SPLIT.split(str(label or ""))]
+    return [part for part in parts if part]
+
+
+def dorm_alias(roster: dict[str, dict[str, Any]]) -> dict[str, str]:
+    alias: dict[str, str] = {}
+    for label, entry in roster.items():
+        parts = entry.get("parts") or dorm_parts(label)
+        for part in parts:
+            alias.setdefault(part, label)
+        alias[label] = label
+    return alias
+
+
+def merge_by_alias(groups: dict[str, Group], alias: dict[str, str]) -> dict[str, Group]:
+    merged: dict[str, Group] = {}
+    for key, group in groups.items():
+        label = alias.get(key, key)
+        target = merged.get(label)
+        if target is None:
+            merged[label] = Group(key=label, qty=group.qty, amount=group.amount,
+                                  skus=set(group.skus), users=set(group.users),
+                                  orders=set(group.orders))
+        else:
+            target.qty += group.qty
+            target.amount += group.amount
+            target.skus |= group.skus
+            target.users |= group.users
+            target.orders |= group.orders
+    return merged

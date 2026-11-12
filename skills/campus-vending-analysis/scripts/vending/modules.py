@@ -11,7 +11,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from .aggregate import METRICS, UNPRICED_BAND, Group, PeriodStat, delta, metric_values
+from .aggregate import (METRICS, UNPRICED_BAND, Group, PeriodStat, delta, dorm_alias,
+                         dorm_parts, merge_by_alias, metric_values)
 from .archive import Baseline
 from .clean import CleanResult
 from .core import (
@@ -538,44 +539,10 @@ def _kind_of(machine: str) -> str:
 
 # ---------------------------------------------------------------- 模块 6
 
-_GROUP_SPLIT = re.compile(r"[+＋/、,，;；\s]+")
-
-
-def _dorm_parts(label: str) -> list[str]:
-    parts = [part.strip() for part in _GROUP_SPLIT.split(str(label or ""))]
-    return [part for part in parts if part]
-
-
-def _dorm_alias(roster: dict[str, dict[str, Any]]) -> dict[str, str]:
-    """人数表用「十栋+十一栋」这种写法时，把每个单栋映射到组名。
-
-    合并关系完全由用户人数表里的写法声明，程序不猜测任何合并。
-    """
-    alias: dict[str, str] = {}
-    for label, entry in roster.items():
-        parts = entry.get("parts") or _dorm_parts(label)
-        for part in parts:
-            alias.setdefault(part, label)
-        alias[label] = label
-    return alias
-
-
-def _merge_by_alias(groups: dict[str, Group], alias: dict[str, str]) -> dict[str, Group]:
-    merged: dict[str, Group] = {}
-    for key, group in groups.items():
-        label = alias.get(key, key)
-        target = merged.get(label)
-        if target is None:
-            merged[label] = Group(key=label, qty=group.qty, amount=group.amount,
-                                  skus=set(group.skus), users=set(group.users),
-                                  orders=set(group.orders))
-        else:
-            target.qty += group.qty
-            target.amount += group.amount
-            target.skus |= group.skus
-            target.users |= group.users
-            target.orders |= group.orders
-    return merged
+# 合并逻辑实现在 aggregate（表格与诊断共用一份），这里保留旧私有名不引起调用点改动
+_dorm_parts = dorm_parts
+_dorm_alias = dorm_alias
+_merge_by_alias = merge_by_alias
 
 
 def _dorm_gender_from_machines(ctx: AnalysisContext) -> dict[str, str]:

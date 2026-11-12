@@ -12,6 +12,7 @@ import tempfile
 import traceback
 from datetime import date
 from pathlib import Path
+import shutil
 from typing import Any, Callable
 
 CL_PATTERN = re.compile(r"CL-\d{2}")
@@ -53,6 +54,7 @@ def run_selftest(verbose: bool = False) -> dict[str, Any]:
     from .archive import fingerprint, load_baseline
     from .cli import main as cli_main
     from . import deps
+    from .archive import backup_existing
     from .diagnose import MIN_HOUR_DEALS, OWNER_BY_MODULE
     from .modules import _dorm_alias, _merge_by_alias
     from .core import NA, Table
@@ -130,6 +132,23 @@ def run_selftest(verbose: bool = False) -> dict[str, Any]:
     for module in run_last.modules:
         checker.check(f"{module.title} 解读含问题/假设/动作",
                       all(token in module.insight for token in ("【问题】", "【假设】", "【动作】")))
+
+    backup_dir = workdir / "_backup_probe"
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    backup_dir.mkdir(parents=True)
+    (backup_dir / "报告.xlsx").write_text("v1", encoding="utf-8")
+    first = backup_existing(backup_dir)
+    (backup_dir / "报告.xlsx").write_text("v2", encoding="utf-8")
+    second = backup_existing(backup_dir)
+    names = sorted(p.name for p in backup_dir.iterdir())
+    checker.check("重复覆盖只产生 .bak/.bak2，不叠加 .bak.bak",
+                  "报告.xlsx.bak" in names and "报告.xlsx.bak2" in names
+                  and not any(name.endswith(".bak.bak") or ".bak2.bak" in name for name in names),
+                  str(names))
+    checker.check("备份不把上一次的备份再备份", len(first) == 1 and len(second) == 1,
+                  f"{first} / {second}")
+    shutil.rmtree(backup_dir, ignore_errors=True)
 
     required_missing, optional_missing = deps.detect()
     checker.check("本机必需依赖齐全（不误报）", not required_missing, str(sorted(required_missing)))

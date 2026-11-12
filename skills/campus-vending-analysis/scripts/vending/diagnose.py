@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Sequence
 
-from .aggregate import Group, PeriodStat, delta, metric_values
+from .aggregate import Group, PeriodStat, delta, dorm_alias, merge_by_alias, metric_values
 from .core import NA, Evidence, UpliftPoint, fmt_money, fmt_num, safe_div
 
 MIN_AMOUNT = 100.0          # 金额影响下限：低于此值不进入清单（避免噪音）
@@ -53,6 +53,13 @@ def _pct_text(rate: float | None) -> str:
     if not isinstance(rate, (int, float)):
         return NA
     return f"{rate * 100:+.1f}%"
+
+
+def _level_text(value: float | None) -> str:
+    """比率“水平值”（如渗透率 16.1%）：不带正负号，带了会被读成变化。"""
+    if not isinstance(value, (int, float)):
+        return NA
+    return f"{value * 100:.1f}%"
 
 
 def _pick(title_map: dict[str, str], key: str, default: str) -> str:
@@ -404,16 +411,22 @@ def rule_dorm_penetration(rc: RuleContext) -> list[UpliftPoint]:
     if not rc.roster:
         return []
     overall = safe_div(rc.cur.users, rc.roster_total, digits=6)
+    # 必须和 09_用户消费分析 用同一套楼栋组合并口径：人数表写「十栋+十一栋」时，
+    # 明细里的「十栋」「十一栋」要先合并再取数，否则取不到就退回空组，
+    # 会报出「渗透率 0.0%、目标 ≥0 人」这种与表格自相矛盾的错点。
+    alias = dorm_alias(rc.roster)
+    cur_dorms = merge_by_alias(rc.cur.dorms, alias)
+    prev_dorms = merge_by_alias(rc.prev.dorms, alias) if rc.prev else {}
     points: list[UpliftPoint] = []
     for dorm, entry in rc.roster.items():
         residents = entry.get("total")
-        group = rc.cur.dorms.get(dorm) or Group(key=dorm)
+        group = cur_dorms.get(dorm) or Group(key=dorm)
         if not residents or residents <= 0:
             continue
         rate = safe_div(group.user_count, residents, digits=6)
         if rate is None or overall is None:
             continue
-        prev_group = (rc.prev.dorms.get(dorm) if rc.prev else None) or Group(key=dorm)
+        prev_group = prev_dorms.get(dorm) or Group(key=dorm)
         prev_rate = safe_div(prev_group.user_count, residents, digits=6)
         user_change, _ = delta(group.user_count, prev_group.user_count if rc.prev else None)
         if rate < max(LOW_PENETRATION, overall * 0.7):
@@ -428,10 +441,9 @@ def rule_dorm_penetration(rc: RuleContext) -> list[UpliftPoint]:
                 expected=f"下一期 {dorm} 消费用户数 ≥ {int(group.user_count * 1.2)} 人（渗透率提至 "
                          f"{rate * 120:.1f}%）",
                 verify=f"看 09_用户消费分析 中 {dorm} 的「本期渗透率」：下期 > {rate * 100:.1f}%",
-                evidence=[Evidence("渗透率", _pct_text(prev_rate), _pct_text(rate), "", "09_用户消费分析", dorm),
+                evidence=[Evidence("渗透率", _level_text(prev_rate), _level_text(rate), "", "09_用户消费分析", dorm),
                           Evidence("消费用户数", prev_group.user_count, group.user_count, _pct_text(_rate(group.user_count, prev_group.user_count) if rc.prev else None),
-                                   "09_用户消费分析", dorm),
-                          Evidence("住宿人数", int(residents), int(residents), "", "09_用户消费分析", dorm)],
+                                   "09_用户消费分析", dorm)],
                 rule_id="R09", confidence="中",
                 score=(overall - rate) * 1000 + _money_impact(user_change or 0)))
     return points

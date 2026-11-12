@@ -433,6 +433,34 @@ def check_chain(runs: dict, truths: dict) -> Report:
                      any(token in (point.verify + point.expected)
                          for token in ("≥", "≤", ">", "<", "回升", "转正")), 0)
         report.check("提升点", f"{point.id} 有证据", True, len(point.evidence) >= 1, 0)
+
+    # 楼栋类提升点必须和 09 表用同一套“楼栋组合并”口径：
+    # 曾经出现过 diagnose 直接用人数表组名去未合并的 stat 里取，取不到就报“渗透率 0.0%”。
+    dorm_table = later.tables["dorm"]
+    dorm_rows = {str(row[0]): row for row in dorm_table.rows if row and row[0]}
+    dorm_columns = list(dorm_table.columns)
+    rate_idx = next((i for i, c in enumerate(dorm_columns)
+                     if c.startswith(str(later.ctx.period_key)) and "渗透率" in c
+                     and "变化" not in c), None)
+    user_idx = next((i for i, c in enumerate(dorm_columns)
+                     if c.startswith(str(later.ctx.period_key)) and c.endswith("用户数")), None)
+    for point in points:
+        if point.module != "dorm":
+            continue
+        for scope in point.scope:
+            row = dorm_rows.get(str(scope))
+            report.check("提升点", f"{point.id} 楼栋 {scope} 在 09 表有行", True, row is not None, 0)
+            if row is None:
+                continue
+            if rate_idx is not None and isinstance(row[rate_idx], (int, float)):
+                text = next((item.cur for item in point.evidence if item.metric == "渗透率"), "")
+                shown = float(str(text).replace("%", "").strip() or 0) / 100
+                report.check("提升点", f"{point.id} {scope} 渗透率与 09 表一致",
+                             round(row[rate_idx], 4), round(shown, 4), 0.0015)
+            if user_idx is not None and isinstance(row[user_idx], (int, float)):
+                text = next((item.cur for item in point.evidence if item.metric == "消费用户数"), "")
+                report.check("提升点", f"{point.id} {scope} 消费用户数与 09 表一致",
+                             int(row[user_idx]), int(str(text).strip() or -1), 0)
     return report
 
 

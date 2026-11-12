@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import re
 import shutil
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -262,13 +263,24 @@ class Meta:
 
 # ---------------------------------------------------------------- 写入
 
+#: 已经是备份的文件名（报告.xlsx.bak / 报告.xlsx.bak2 …），不再参与二次备份
+_BACKUP_NAME = re.compile(r"\.bak\d*$")
+
+
 def backup_existing(path: Path) -> list[str]:
-    """同名文件先原样另存为 .bak（已存在则 .bak2/.bak3…），返回改名清单。"""
+    """同名文件先原样另存为 .bak（已存在则 .bak2/.bak3…），返回改名清单。
+
+    目录模式下只备份“本次会被覆盖的正式文件”：已经是备份的文件（``*.bak`` /
+    ``*.bakN``）跳过。否则每重跑一次就会把上一次的备份再备份一次，
+    文件名滚成 ``报告.xlsx.bak.bak.bak`` 这种没法读的样子。
+    """
     moved: list[str] = []
     if not path.exists():
         return moved
     targets = [path] if path.is_file() else [p for p in path.rglob("*") if p.is_file()]
     for target in targets:
+        if _BACKUP_NAME.search(target.name):
+            continue
         backup = target.with_suffix(target.suffix + ".bak")
         index = 2
         while backup.exists():
