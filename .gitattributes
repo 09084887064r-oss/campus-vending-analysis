@@ -1,0 +1,14 @@
+# 跨平台换行与二进制属性：仓库会被拷到 Windows / macOS / Linux 上用，
+# 不统一换行会让每次改动都显示整文件 diff。
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+
+# 二进制：不做换行转换，也不要做 diff
+*.xlsx binary
+*.docx binary
+*.zip  binary
+*.png  binary

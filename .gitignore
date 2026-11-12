@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 运行产物：归档数据不进仓库
+skills/campus-vending-analysis/data/raw/
+skills/campus-vending-analysis/data/processed/
+skills/campus-vending-analysis/data/reports/
+*.bak
+*.bak[0-9]*
+
+# 打包产物与临时输出
+dist/
+demo_output/
+*_交互报告.html
+
+# 开发期回归夹具的运行产物（fixture 本身由 tests/make_fixture.py 生成，可重建）
+tests/fixture/
+tests/archive/
+tests/preflight/
+tests/reports/
+tests/cli_out/
+tests/cli_archive/
+tests/na_out/
+tests/na_archive/
+tests/report_truth.json
+tests/report_fidelity.json
+tests/fixture_report.json

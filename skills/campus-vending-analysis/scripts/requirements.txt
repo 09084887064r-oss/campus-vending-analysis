@@ -1,0 +1,12 @@
+# 运行本技能所需依赖（Python 3.9+）
+#
+# 核心分析、Excel 导出、HTML 导出只需要标准库 + openpyxl；
+# Word 导出是可选功能，缺 python-docx 或 matplotlib 时脚本会明确报错并跳过该格式，
+# 不会静默产出一个坏文件。
+#
+# 安装：
+#   python -m pip install -r scripts/requirements.txt
+
+openpyxl>=3.1            # MIT   —— Excel 读写与原生图表（必需）
+python-docx>=1.1         # MIT   —— Word 报告（可选）
+matplotlib>=3.7          # PSF/BSD 兼容 —— Word 报告内的图表 PNG（可选，与 python-docx 配套）

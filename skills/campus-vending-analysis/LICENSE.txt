@@ -1,0 +1,24 @@
+校园自助售货机销售分析 Skill（campus-vending-sales-analysis）
+Copyright (c) 2026
+
+本技能包内包含：
+- 说明与文档：SKILL.md、references/*.md（可自由修改以适配本校口径）
+- 脚本：scripts/（Python 3.9+，仅依赖标准库；Word 导出为可选功能，
+  需要 python-docx 与 matplotlib）
+- 模板：assets/template/（report.html / report.css / report.js）
+
+授权条款
+
+1. 允许在组织内部（含学校、后勤服务方及其委托的分析方）自由使用、修改、
+   复制本技能包，用于校园售货机经营分析及其延伸场景。
+2. 允许将修改后的版本在组织内部再分发；再分发时请保留本文件与 SKILL.md
+   中的元信息（name、description）。
+3. 未经书面许可，不得将本技能包或其修改版作为付费产品单独销售。
+4. 本技能按"现状"提供，不附带任何明示或暗示的担保。分析结果用于经营决策前，
+   请自行核对源数据与口径；作者不对因数据质量、口径选择或使用方式导致的
+   任何损失承担责任。
+
+第三方依赖（由使用者自行安装，各自遵循其原始许可证）
+- openpyxl（MIT）             —— Excel 读写与原生图表
+- python-docx（MIT）          —— Word 导出（可选）
+- matplotlib（PSF/BSD 兼容）  —— Word 报告中的图表渲染（可选）
